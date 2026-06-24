@@ -122,7 +122,7 @@ def send_otp_email(to_email, otp):
         """
         msg.attach(MIMEText(html, "html"))
 
-        with smtplib.SMTP("smtp-relay.brevo.com", 587) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
             server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
         return True
