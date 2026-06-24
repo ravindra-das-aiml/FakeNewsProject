@@ -19,7 +19,7 @@ app.secret_key = "newsguard_secret_2025"
 # EMAIL CONFIG
 # -----------------------------
 EMAIL_ADDRESS  = "agarwalji7272@gmail.com"
-EMAIL_PASSWORD = "hkzd wmjr lrof qrxa"
+EMAIL_PASSWORD = "ganm uifp igiu dyhp"
 
 # -----------------------------
 # MODEL LOAD
