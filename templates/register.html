@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — NewsGuard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">🔍</div>
+    <h1 class="auth-title">NewsGuard</h1>
+    <p class="auth-sub">Create your account</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="field-group">
+        <label class="field-label">Username</label>
+        <input type="text" name="username" class="auth-input" placeholder="Choose a username" required autofocus/>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Email</label>
+        <input type="email" name="email" class="auth-input" placeholder="Enter your email" required/>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Password</label>
+        <input type="password" name="password" class="auth-input" placeholder="Min 6 characters" required/>
+      </div>
+      <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">Create Account →</button>
+    </form>
+
+    <p class="auth-switch">Already have an account? <a href="/login">Login here</a></p>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — NewsGuard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">🔍</div>
+    <h1 class="auth-title">NewsGuard</h1>
+    <p class="auth-sub">Login to your account</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="field-group">
+        <label class="field-label">Username</label>
+        <input type="text" name="username" class="auth-input" placeholder="Enter username" required autofocus/>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Password</label>
+        <input type="password" name="password" class="auth-input" placeholder="Enter password" required/>
+      </div>
+      <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">Login →</button>
+    </form>
+
+    <p class="auth-switch">Don't have an account? <a href="/register">Register here</a></p>
+  </div>
+</div>
+</body>
+</html>

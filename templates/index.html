@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NewsGuard — Fake News Detector</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-logo">🔍</span>
+    <span class="nav-title">NewsGuard</span>
+    {% if session.get('role') == 'admin' %}
+    <span class="admin-badge">ADMIN</span>
+    {% endif %}
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link active">Detector</a>
+    <a href="/history" class="nav-link">My History</a>
+    {% if session.get('role') == 'admin' %}
+    <a href="/admin" class="nav-link" style="color:var(--accent)">Admin Panel</a>
+    {% endif %}
+    <span class="nav-user">👤 {{ session.get('username') }}</span>
+    <a href="/logout" class="btn-ghost" style="font-size:13px; padding:6px 12px; text-decoration:none;">Logout</a>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+</nav>
+
+<main class="main">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="hero">
+    <span class="hero-badge">AI Powered · TF-IDF · Logistic Regression</span>
+    <h1 class="hero-title">Is This News <span class="highlight">Real or Fake?</span></h1>
+    <p class="hero-sub">Paste any news article or URL — our ML model analyses it in seconds.</p>
+  </div>
+
+  <div class="card">
+    <form method="POST" id="newsForm">
+      <label class="field-label" for="newsInput">News Article / URL</label>
+      <textarea
+        id="newsInput"
+        name="news"
+        class="news-textarea"
+        placeholder="Paste news article text here…&#10;or enter a URL starting with https://"
+        required
+      >{{ news_input or '' }}</textarea>
+      <p class="field-hint">💡 Supports plain text and direct news article links</p>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">🔎 Analyse News</button>
+        <button type="button" class="btn-ghost" onclick="document.getElementById('newsInput').value=''">✕ Clear</button>
+      </div>
+    </form>
+
+    {% if result == 'error' %}
+      <div class="result-box result-error">
+        <span class="result-icon">⚠️</span>
+        <div>
+          <div class="result-label">Could Not Analyse</div>
+          <div class="result-sub">Invalid input or unable to read the link.</div>
+        </div>
+      </div>
+    {% elif result %}
+      <div class="result-box {{ 'result-fake' if is_fake else 'result-real' }}">
+        <span class="result-icon">{{ '🚨' if is_fake else '✅' }}</span>
+        <div class="result-body">
+          <div class="result-label">{{ 'FAKE NEWS DETECTED' if is_fake else 'REAL NEWS' }}</div>
+          <div class="result-sub">Confidence: <strong>{{ confidence }}%</strong></div>
+          <div class="conf-track">
+            <div class="conf-fill" style="width:{{ confidence }}%"></div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-num">~98%</div>
+      <div class="stat-lbl">Model Accuracy</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">44K+</div>
+      <div class="stat-lbl">Training Samples</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">TF-IDF</div>
+      <div class="stat-lbl">Vectorizer</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">LR</div>
+      <div class="stat-lbl">Logistic Regression</div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">Built with Flask · scikit-learn · Python &nbsp;|&nbsp; NewsGuard © 2025</footer>
+
+<script>
+  (function(){ if(localStorage.getItem('theme')==='light') setLight(); })();
+  function setLight(){ document.body.classList.add('light'); const b=document.getElementById('themeBtn'); if(b) b.textContent='☀️'; }
+  function toggleTheme(){ const l=document.body.classList.toggle('light'); document.getElementById('themeBtn').textContent=l?'☀️':'🌙'; localStorage.setItem('theme',l?'light':'dark'); }
+</script>
+</body>
+</html>

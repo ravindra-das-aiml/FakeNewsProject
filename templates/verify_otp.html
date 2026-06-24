@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verify OTP — NewsGuard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">📧</div>
+    <h1 class="auth-title">Verify Email</h1>
+    <p class="auth-sub">OTP sent to <strong style="color:var(--accent)">{{ email }}</strong></p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="field-group">
+        <label class="field-label">Enter 6-digit OTP</label>
+        <input
+          type="text"
+          name="otp"
+          class="auth-input otp-input"
+          placeholder="— — — — — —"
+          maxlength="6"
+          required
+          autofocus
+        />
+      </div>
+      <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">✅ Verify OTP</button>
+    </form>
+
+    <p class="auth-switch" style="margin-top:16px;">
+      Didn't receive OTP? <a href="/resend-otp">Resend OTP</a>
+    </p>
+    <p class="auth-switch">
+      <a href="/register">← Back to Register</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel — NewsGuard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-logo">🔍</span>
+    <span class="nav-title">NewsGuard</span>
+    <span class="admin-badge">ADMIN</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Detector</a>
+    <a href="/admin" class="nav-link active">Users</a>
+    <a href="/admin/history" class="nav-link">All History</a>
+    <a href="/logout" class="nav-link" style="color:var(--fake)">Logout</a>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">👑 Admin Panel</h2>
+      <p class="page-sub">Manage all users and their activity</p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}" style="margin-bottom:20px;">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Stats -->
+  <div class="stats-grid" style="margin-bottom:32px;">
+    <div class="stat-card">
+      <div class="stat-num">{{ users|length }}</div>
+      <div class="stat-lbl">Total Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ total_checks }}</div>
+      <div class="stat-lbl">Total Checks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--fake)">{{ total_fake }}</div>
+      <div class="stat-lbl">Fake Detected</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--real)">{{ total_checks - total_fake }}</div>
+      <div class="stat-lbl">Real Detected</div>
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Joined</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td class="td-id">{{ user[0] }}</td>
+          <td><strong>{{ user[1] }}</strong></td>
+          <td style="color:var(--t2)">{{ user[2] }}</td>
+          <td>
+            <span class="role-badge {{ 'role-admin' if user[3] == 'admin' else 'role-user' }}">
+              {{ user[3] }}
+            </span>
+          </td>
+          <td style="color:var(--t2); font-size:13px;">{{ user[4] }}</td>
+          <td>
+            {% if user[3] != 'admin' %}
+            <form method="POST" action="/admin/delete/{{ user[0] }}" onsubmit="return confirm('Delete {{ user[1] }}?')">
+              <button type="submit" class="btn-delete">🗑 Delete</button>
+            </form>
+            {% else %}
+            <span style="color:var(--t3); font-size:12px;">Protected</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer class="footer">NewsGuard Admin Panel © 2025</footer>
+
+<script>
+  (function(){ if(localStorage.getItem('theme')==='light') setLight(); })();
+  function setLight(){ document.body.classList.add('light'); const b=document.getElementById('themeBtn'); if(b) b.textContent='☀️'; }
+  function toggleTheme(){ const l=document.body.classList.toggle('light'); document.getElementById('themeBtn').textContent=l?'☀️':'🌙'; localStorage.setItem('theme',l?'light':'dark'); }
+</script>
+</body>
+</html>

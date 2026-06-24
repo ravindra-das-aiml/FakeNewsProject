@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>All History — NewsGuard Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-logo">🔍</span>
+    <span class="nav-title">NewsGuard</span>
+    <span class="admin-badge">ADMIN</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Detector</a>
+    <a href="/admin" class="nav-link">Users</a>
+    <a href="/admin/history" class="nav-link active">All History</a>
+    <a href="/logout" class="nav-link" style="color:var(--fake)">Logout</a>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">📋 All Users History</h2>
+      <p class="page-sub">Every detection across all users</p>
+    </div>
+    <a href="/admin" class="btn-ghost" style="text-decoration:none;">← Back to Users</a>
+  </div>
+
+  {% if data %}
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>User</th>
+          <th>News</th>
+          <th>Result</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data %}
+        {% set is_fake = 'Fake' in row[3] %}
+        <tr>
+          <td class="td-id">{{ row[0] }}</td>
+          <td><strong>{{ row[1] }}</strong></td>
+          <td style="color:var(--t2); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ row[2] }}</td>
+          <td>
+            <span class="h-badge {{ 'badge-fake' if is_fake else 'badge-real' }}">
+              {{ '🚨 Fake' if is_fake else '✅ Real' }}
+            </span>
+          </td>
+          <td style="color:var(--t2); font-size:13px; white-space:nowrap;">{{ row[4] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <h3>No History Yet</h3>
+    <p>No users have checked any news yet.</p>
+  </div>
+  {% endif %}
+
+</main>
+
+<footer class="footer">NewsGuard Admin Panel © 2025</footer>
+
+<script>
+  (function(){ if(localStorage.getItem('theme')==='light') setLight(); })();
+  function setLight(){ document.body.classList.add('light'); const b=document.getElementById('themeBtn'); if(b) b.textContent='☀️'; }
+  function toggleTheme(){ const l=document.body.classList.toggle('light'); document.getElementById('themeBtn').textContent=l?'☀️':'🌙'; localStorage.setItem('theme',l?'light':'dark'); }
+</script>
+</body>
+</html>

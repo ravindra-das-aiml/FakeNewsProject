@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>History — NewsGuard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<!-- ══════════════ NAVBAR ══════════════ -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-logo">🔍</span>
+    <span class="nav-title">NewsGuard</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Detector</a>
+    <a href="/history" class="nav-link active">History</a>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Detection History</h2>
+      <p class="page-sub">All past analyses — newest first</p>
+    </div>
+    <div class="header-actions">
+      <a href="/" class="btn-primary" style="text-decoration:none; font-size:14px; padding:10px 20px;">+ New Check</a>
+      {% if data %}
+      <form method="POST" action="/clear" style="display:inline;" onsubmit="return confirm('Clear all history?')">
+        <button type="submit" class="btn-ghost" style="font-size:14px; padding:10px 16px;">🗑 Clear All</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if cleared %}
+  <div class="alert-success">✅ History cleared successfully.</div>
+  {% endif %}
+
+  {% if data %}
+
+    <!-- STATS GRID -->
+    <div class="stats-grid" style="margin-bottom:32px;">
+      <div class="stat-card">
+        <div class="stat-num">{{ data|length }}</div>
+        <div class="stat-lbl">Total Checks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--fake)">{{ fake_count }}</div>
+        <div class="stat-lbl">Fake Detected</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--real)">{{ real_count }}</div>
+        <div class="stat-lbl">Real Detected</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{{ ((fake_count / data|length) * 100)|round(0)|int }}%</div>
+        <div class="stat-lbl">Fake Rate</div>
+      </div>
+    </div>
+
+    <!-- ══ CHARTS ROW ══ -->
+    <div class="charts-row">
+
+      <!-- Pie Chart -->
+      <div class="chart-card">
+        <div class="chart-title">📊 Fake vs Real</div>
+        <div class="chart-wrap">
+          <canvas id="pieChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Bar Chart -->
+      <div class="chart-card">
+        <div class="chart-title">📈 Daily Detections</div>
+        <div class="chart-wrap">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Confidence Chart -->
+      <div class="chart-card">
+        <div class="chart-title">🎯 Avg Confidence</div>
+        <div class="chart-wrap">
+          <canvas id="confChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- HISTORY LIST -->
+    <div class="history-list" style="margin-top:32px;">
+      {% for row in data %}
+        {% set is_fake = 'Fake' in row[2] %}
+        <div class="history-item">
+          <span class="h-id">#{{ row[0] }}</span>
+          <div class="h-text">{{ row[1] }}</div>
+          <div class="h-meta">
+            <span class="h-badge {{ 'badge-fake' if is_fake else 'badge-real' }}">
+              {{ '🚨 Fake' if is_fake else '✅ Real' }}
+            </span>
+            {% if row[3] %}
+            <span class="h-time">{{ row[3] }}</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No History Yet</h3>
+      <p>Go check some news and results will appear here.</p>
+      <a href="/" class="btn-primary" style="text-decoration:none; display:inline-block; margin-top:20px;">Go to Detector</a>
+    </div>
+  {% endif %}
+
+</main>
+
+<footer class="footer">
+  Built with Flask · scikit-learn · Python &nbsp;|&nbsp; NewsGuard © 2025
+</footer>
+
+<script>
+  // ── Theme ──
+  (function () {
+    if (localStorage.getItem('theme') === 'light') setLight();
+  })();
+  function setLight() {
+    document.body.classList.add('light');
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = '☀️';
+  }
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    document.getElementById('themeBtn').textContent = isLight ? '☀️' : '🌙';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    updateChartColors();
+  }
+
+  // ── Chart data from Flask ──
+  const fakeCount    = {{ fake_count or 0 }};
+  const realCount    = {{ real_count or 0 }};
+  const avgFakeConf  = {{ avg_fake_conf or 0 }};
+  const avgRealConf  = {{ avg_real_conf or 0 }};
+  const dailyLabels  = {{ daily_labels | tojson }};
+  const dailyFake    = {{ daily_fake   | tojson }};
+  const dailyReal    = {{ daily_real   | tojson }};
+
+  const FAKE_COLOR = '#f85149';
+  const REAL_COLOR = '#3fb950';
+  const GRID_COLOR = 'rgba(255,255,255,0.07)';
+
+  Chart.defaults.color = '#8b949e';
+  Chart.defaults.font.family = 'Inter, sans-serif';
+
+  // ── PIE CHART ──
+  const pieChart = new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Fake News', 'Real News'],
+      datasets: [{
+        data: [fakeCount, realCount],
+        backgroundColor: [FAKE_COLOR, REAL_COLOR],
+        borderColor: '#161b22',
+        borderWidth: 3,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { padding: 16, font: { size: 12 } }
+        }
+      }
+    }
+  });
+
+  // ── BAR CHART ──
+  const barChart = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: dailyLabels.length ? dailyLabels : ['No data'],
+      datasets: [
+        {
+          label: 'Fake',
+          data: dailyFake,
+          backgroundColor: 'rgba(248,81,73,0.7)',
+          borderRadius: 6
+        },
+        {
+          label: 'Real',
+          data: dailyReal,
+          backgroundColor: 'rgba(63,185,80,0.7)',
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      scales: {
+        x: { grid: { color: GRID_COLOR }, ticks: { maxRotation: 45 } },
+        y: { grid: { color: GRID_COLOR }, beginAtZero: true, ticks: { stepSize: 1 } }
+      },
+      plugins: { legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } } }
+    }
+  });
+
+  // ── CONFIDENCE BAR CHART ──
+  const confChart = new Chart(document.getElementById('confChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Fake News', 'Real News'],
+      datasets: [{
+        label: 'Avg Confidence %',
+        data: [avgFakeConf, avgRealConf],
+        backgroundColor: [
+          'rgba(248,81,73,0.7)',
+          'rgba(63,185,80,0.7)'
+        ],
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      scales: {
+        x: { grid: { color: GRID_COLOR } },
+        y: {
+          grid: { color: GRID_COLOR },
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: v => v + '%' }
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  function updateChartColors() {
+    // Charts auto-adapt via CSS vars; no manual update needed
+  }
+</script>
+</body>
+</html>
