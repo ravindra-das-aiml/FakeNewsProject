@@ -6,20 +6,18 @@ from bs4 import BeautifulSoup
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-import smtplib
 import random
 import time
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import os
 
 app = Flask(__name__)
 app.secret_key = "newsguard_secret_2025"
 
 # -----------------------------
-# EMAIL CONFIG
+# EMAIL CONFIG (Brevo API)
 # -----------------------------
-EMAIL_ADDRESS  = "agarwalji7272@gmail.com"
-EMAIL_PASSWORD = "ganm uifp igiu dyhp"
+EMAIL_ADDRESS = "agarwalji7272@gmail.com"
+BREVO_API_KEY = BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
 
 # -----------------------------
 # MODEL LOAD
@@ -33,7 +31,6 @@ vectorizer = pickle.load(open("model/vectorizer.pkl", "rb"))
 def init_db():
     conn   = sqlite3.connect("history.db")
     cursor = conn.cursor()
-
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +42,6 @@ def init_db():
             created  DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS history (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,7 +52,6 @@ def init_db():
             FOREIGN KEY(user_id) REFERENCES users(id)
         )
     """)
-
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS otp_store (
             email   TEXT PRIMARY KEY,
@@ -64,14 +59,12 @@ def init_db():
             expiry  INTEGER NOT NULL
         )
     """)
-
     cursor.execute("SELECT * FROM users WHERE username = 'admin'")
     if not cursor.fetchone():
         cursor.execute(
             "INSERT INTO users (username, email, password, role, verified) VALUES (?, ?, ?, ?, ?)",
             ("admin", "admin@newsguard.com", generate_password_hash("admin123"), "admin", 1)
         )
-
     conn.commit()
     conn.close()
 
@@ -102,31 +95,37 @@ def admin_required(f):
     return decorated
 
 # -----------------------------
-# EMAIL OTP
+# EMAIL OTP — Brevo API
 # -----------------------------
 def send_otp_email(to_email, otp):
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "NewsGuard — Your OTP Verification Code"
-        msg["From"]    = EMAIL_ADDRESS
-        msg["To"]      = to_email
-
-        html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;background:#0d1117;color:#e6edf3;padding:32px;border-radius:12px;border:1px solid #30363d;">
-          <h2 style="color:#58a6ff;margin-bottom:8px;">🔍 NewsGuard</h2>
-          <p style="color:#8b949e;margin-bottom:24px;">Email Verification</p>
-          <p>Your OTP code is:</p>
-          <div style="font-size:36px;font-weight:700;letter-spacing:10px;color:#58a6ff;background:#161b22;padding:20px;border-radius:8px;text-align:center;margin:20px 0;">{otp}</div>
-          <p style="color:#8b949e;font-size:13px;">This code expires in <strong>5 minutes</strong>. Do not share it with anyone.</p>
-        </div>
-        """
-        msg.attach(MIMEText(html, "html"))
-
-        resp = __import__("requests").post("https://api.brevo.com/v3/smtp/email", headers={"accept":"application/json","api-key":"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","content-type":"application/json"}, json={"sender":{"name":"NewsGuard","email":EMAIL_ADDRESS},"to":[{"email":to_email}],"subject":"NewsGuard OTP","htmlContent":"<h2>OTP: "+otp+"</h2>"}, timeout=10)
-        print("Brevo:", resp.status_code)
-        return resp.status_code == 201
-        if False:
-        return True
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "accept": "application/json",
+            "api-key": BREVO_API_KEY,
+            "content-type": "application/json"
+        }
+        payload = {
+            "sender": {"name": "NewsGuard", "email": EMAIL_ADDRESS},
+            "to": [{"email": to_email}],
+            "subject": "NewsGuard - Your OTP Verification Code",
+            "htmlContent": (
+                "<div style='font-family:Arial,sans-serif;max-width:480px;margin:auto;"
+                "background:#0d1117;color:#e6edf3;padding:32px;border-radius:12px;"
+                "border:1px solid #30363d;'>"
+                "<h2 style='color:#58a6ff;'>NewsGuard</h2>"
+                "<p>Email Verification</p>"
+                "<p>Your OTP code is:</p>"
+                "<div style='font-size:36px;font-weight:700;letter-spacing:10px;"
+                "color:#58a6ff;background:#161b22;padding:20px;border-radius:8px;"
+                "text-align:center;margin:20px 0;'>" + otp + "</div>"
+                "<p style='color:#8b949e;font-size:13px;'>Expires in 5 minutes. Do not share.</p>"
+                "</div>"
+            )
+        }
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        print(f"Brevo API response: {response.status_code} {response.text}")
+        return response.status_code == 201
     except Exception as e:
         print(f"Email error: {e}")
         return False
@@ -135,7 +134,7 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 def save_otp(email, otp):
-    expiry = int(time.time()) + 300  # 5 minutes
+    expiry = int(time.time()) + 300
     conn   = sqlite3.connect("history.db")
     cursor = conn.cursor()
     cursor.execute("INSERT OR REPLACE INTO otp_store (email, otp, expiry) VALUES (?, ?, ?)",
@@ -149,7 +148,6 @@ def verify_otp(email, otp):
     cursor.execute("SELECT otp, expiry FROM otp_store WHERE email = ?", (email,))
     row = cursor.fetchone()
     conn.close()
-
     if not row:
         return False, "OTP not found."
     if int(time.time()) > row[1]:
@@ -205,26 +203,22 @@ def get_chart_data(data):
     }
 
 # -----------------------------
-# REGISTER — Step 1
+# REGISTER
 # -----------------------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if "user_id" in session:
         return redirect(url_for("home"))
-
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         email    = request.form.get("email", "").strip()
         password = request.form.get("password", "").strip()
-
         if not username or not email or not password:
             flash("All fields are required.", "error")
             return render_template("register.html")
-
         if len(password) < 6:
             flash("Password must be at least 6 characters.", "error")
             return render_template("register.html")
-
         conn   = sqlite3.connect("history.db")
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM users WHERE username=? OR email=?", (username, email))
@@ -233,13 +227,9 @@ def register():
             flash("Username or email already exists.", "error")
             return render_template("register.html")
         conn.close()
-
-        # Save temp data in session
         session["reg_username"] = username
         session["reg_email"]    = email
         session["reg_password"] = generate_password_hash(password)
-
-        # Send OTP
         otp = generate_otp()
         save_otp(email, otp)
         if send_otp_email(email, otp):
@@ -248,21 +238,18 @@ def register():
         else:
             flash("Failed to send OTP. Please try again.", "error")
             return render_template("register.html")
-
     return render_template("register.html")
 
 # -----------------------------
-# VERIFY OTP — Step 2
+# VERIFY OTP
 # -----------------------------
 @app.route("/verify-otp", methods=["GET", "POST"])
 def verify_otp_page():
     if "reg_email" not in session:
         return redirect(url_for("register"))
-
     if request.method == "POST":
         entered_otp = request.form.get("otp", "").strip()
         email       = session.get("reg_email")
-
         valid, msg = verify_otp(email, entered_otp)
         if valid:
             conn   = sqlite3.connect("history.db")
@@ -277,14 +264,13 @@ def verify_otp_page():
                 session.pop("reg_username", None)
                 session.pop("reg_email", None)
                 session.pop("reg_password", None)
-                flash("Account verified! Please login. ✅", "success")
+                flash("Account verified! Please login.", "success")
                 return redirect(url_for("login"))
             except sqlite3.IntegrityError:
                 conn.close()
                 flash("Account already exists.", "error")
         else:
             flash(msg, "error")
-
     return render_template("verify_otp.html", email=session.get("reg_email"))
 
 # -----------------------------
@@ -310,19 +296,16 @@ def resend_otp():
 def login():
     if "user_id" in session:
         return redirect(url_for("home"))
-
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
-
         conn   = sqlite3.connect("history.db")
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
         conn.close()
-
         if user and check_password_hash(user[3], password):
-            if not user[5]:  # verified column
+            if not user[5]:
                 flash("Please verify your email first.", "warning")
                 return render_template("login.html")
             session["user_id"]  = user[0]
@@ -332,7 +315,6 @@ def login():
             return redirect(url_for("home"))
         else:
             flash("Invalid username or password.", "error")
-
     return render_template("login.html")
 
 # -----------------------------
@@ -354,16 +336,13 @@ def home():
     news_input = ""
     is_fake    = None
     confidence = None
-
     if request.method == "POST":
         user_input = request.form.get("news", "").strip()
         news_input = user_input
-
         if user_input.startswith("http"):
             news_text = extract_text_from_url(user_input)
         else:
             news_text = user_input
-
         if not news_text:
             result = "error"
         else:
@@ -373,7 +352,6 @@ def home():
             confidence  = round(max(probability[0]) * 100, 2)
             is_fake     = (prediction[0] == 0)
             result      = f"{'Fake' if is_fake else 'Real'} News ({confidence}%)"
-
             conn   = sqlite3.connect("history.db")
             cursor = conn.cursor()
             cursor.execute(
@@ -382,7 +360,6 @@ def home():
             )
             conn.commit()
             conn.close()
-
     return render_template("index.html",
                            result=result, is_fake=is_fake,
                            confidence=confidence, news_input=news_input)
@@ -465,7 +442,7 @@ def delete_user(user_id):
     return redirect(url_for("admin"))
 
 # -----------------------------
-# RUN — 0.0.0.0 for phone access
+# RUN
 # -----------------------------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
