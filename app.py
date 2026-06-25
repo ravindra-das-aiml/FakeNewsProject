@@ -122,9 +122,10 @@ def send_otp_email(to_email, otp):
         """
         msg.attach(MIMEText(html, "html"))
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
+        resp = __import__("requests").post("https://api.brevo.com/v3/smtp/email", headers={"accept":"application/json","api-key":"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","content-type":"application/json"}, json={"sender":{"name":"NewsGuard","email":EMAIL_ADDRESS},"to":[{"email":to_email}],"subject":"NewsGuard OTP","htmlContent":"<h2>OTP: "+otp+"</h2>"}, timeout=10)
+        print("Brevo:", resp.status_code)
+        return resp.status_code == 201
+        if False:
         return True
     except Exception as e:
         print(f"Email error: {e}")
